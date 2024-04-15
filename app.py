@@ -99,7 +99,7 @@ def personalized_feed(user_id):
     # Update the user document in MongoDB with the final recommendations
     users_collection.update_one(
         {'_id': ObjectId(user_id)},
-        {'$push': {'poemRecommendations': {'$each': final_recommendations}}}
+        {'$set': {'poemRecommendations': final_recommendations}}
     )
         
     return json.loads(json_util.dumps(final_recommendations))
