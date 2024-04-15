@@ -46,7 +46,7 @@ def get_recommendations(title, cosine_sim=cosine_sim):
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
 
     # Get the scores of the 10 most similar poems
-    sim_scores = sim_scores[1:4]
+    sim_scores = sim_scores[1:6]
 
     # Get the movie indices
     poem_indices = [i[0] for i in sim_scores]
