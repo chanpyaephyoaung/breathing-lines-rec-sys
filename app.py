@@ -20,25 +20,20 @@ users_collection = db['users']
 poems_collection = db['poems']
 
 poems_list = poems_collection.find()
-poem_title = [poemTitle['title'] for poemTitle in poems_list]
+poem_id = [poem['_id'] for poem in poems_list]
+poems_list.rewind()
+poem_title = [poem['title'] for poem in poems_list]
 poems_list.rewind()
 poem_content = [poem['content'] for poem in poems_list]
-# print(poem_title[:3],  poem_content[:3])
 
 tfidf = TfidfVectorizer(stop_words='english')
 
-# poem_content = poem_content.fillna('')
-
 tfidf_matrix = tfidf.fit_transform(poem_content)
-# print(tfidf_matrix.shape)
 
 cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
-# print(cosine_sim.shape)
-# print(cosine_sim[1])
 
 # Construct a reverse map of indices and poem titles
 indices = pd.Series(range(len(poem_title)), index=poem_title).drop_duplicates()
-# print("suck it", indices[:3])
 
 def get_recommendations(title, cosine_sim=cosine_sim):
    # Get the index of the movie that matches the title
@@ -51,20 +46,24 @@ def get_recommendations(title, cosine_sim=cosine_sim):
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
 
     # Get the scores of the 10 most similar poems
-    sim_scores = sim_scores[1:3]
+    sim_scores = sim_scores[1:4]
 
     # Get the movie indices
     poem_indices = [i[0] for i in sim_scores]
 
-    # Return the top 10 most similar poems
-   #  return metadata['title'].iloc[movie_indices]
+    # Create a list of dictionaries with movie titles and similarity scores
+    recommendations = [{'id': poem_id[i], 'title': poem_title[i], 'score': sim_scores[j][1]} for j, i in enumerate(poem_indices)]
 
-   # Create a list of dictionaries with movie titles and similarity scores
-    recommendations = [{'title': poem_title[i], 'score': sim_scores[j][1]} for j, i in enumerate(poem_indices)]
-    
-    return json.dumps(recommendations)
+    # recommendations = [
+    # {
+    #     'id': poem_id[i],
+    #     'title': poem_title[i],
+    #     'score': sim_scores[j][1],
+    #     'author': users_collection.find_one({'_id': poems_collection.find_one({'title': poem_title[i]})['author']}).get('name', 'Unknown')
+    # } for j, i in enumerate(poem_indices)
+    # ]
 
-print(get_recommendations('A Jelly-Fish'))
+    return recommendations
 
 @app.route("/")
 def hello_world():
@@ -77,13 +76,33 @@ def personalized_feed(user_id):
     user = users_collection.find_one({'_id': ObjectId(user_id)})
     favorited_poems_ids = user['favoritedPoems']
 
-    # Fetch favorited poems from MongoDB
-    favorited_poems = []
-    for poem_id in favorited_poems_ids:
+    # Get the last two elements of the favorited poems ids
+    latest_ids = favorited_poems_ids[-10:]
+
+    # Fetch favorited poems from MongoDB and give recommendations
+    recommended_poems = []
+    for poem_id in latest_ids:
         poem = poems_collection.find_one({'_id': poem_id})
-        favorited_poems.append(poem)
         
-    return json.loads(json_util.dumps(favorited_poems))
+        recommendations = get_recommendations(poem['title'])
+        recommended_poems.append(recommendations)
+    
+    # Merge the recommendations
+    merged_recommendations = {}
+    for recommendations in recommended_poems:
+        for recommendation in recommendations:
+            title = recommendation['title']
+            if title not in merged_recommendations:
+                merged_recommendations[title] = recommendation
+
+    # Convert the dictionary of merged recommendations back to a list
+    final_recommendations = list(merged_recommendations.values())
+
+    # Sort the recommendations by score in descending order
+    final_recommendations = sorted(final_recommendations, key=lambda x: x['score'], reverse=True)
+        
+    return json.loads(json_util.dumps(final_recommendations))
+
 
 if __name__ == '__main__':
     app.run(debug=True)
