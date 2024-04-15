@@ -54,15 +54,6 @@ def get_recommendations(title, cosine_sim=cosine_sim):
     # Create a list of dictionaries with movie titles and similarity scores
     recommendations = [{'id': poem_id[i], 'title': poem_title[i], 'score': sim_scores[j][1]} for j, i in enumerate(poem_indices)]
 
-    # recommendations = [
-    # {
-    #     'id': poem_id[i],
-    #     'title': poem_title[i],
-    #     'score': sim_scores[j][1],
-    #     'author': users_collection.find_one({'_id': poems_collection.find_one({'title': poem_title[i]})['author']}).get('name', 'Unknown')
-    # } for j, i in enumerate(poem_indices)
-    # ]
-
     return recommendations
 
 @app.route("/")
@@ -70,11 +61,15 @@ def hello_world():
     return "<p>This is a content-based recommendation system API for BreathingLines!</p>"
 
 # Endpoint to get personalized feed for a user
-@app.route("/personalized-feed/<user_id>")
+@app.route("/personalized-feed/<user_id>", methods=['POST'])
 def personalized_feed(user_id):
     # Fetch user's favorited poems list
     user = users_collection.find_one({'_id': ObjectId(user_id)})
     favorited_poems_ids = user['favoritedPoems']
+
+    # Check if the length of favorited_poems_ids is less than 10
+    if len(favorited_poems_ids) < 4:
+        return jsonify({'message': 'You have not interacted with poems much yet! Like more poems so we can show you more poems you might like!'}), 400
 
     # Get the last two elements of the favorited poems ids
     latest_ids = favorited_poems_ids[-10:]
@@ -100,6 +95,12 @@ def personalized_feed(user_id):
 
     # Sort the recommendations by score in descending order
     final_recommendations = sorted(final_recommendations, key=lambda x: x['score'], reverse=True)
+
+    # Update the user document in MongoDB with the final recommendations
+    users_collection.update_one(
+        {'_id': ObjectId(user_id)},
+        {'$push': {'poemRecommendations': {'$each': final_recommendations}}}
+    )
         
     return json.loads(json_util.dumps(final_recommendations))
 
