@@ -14,6 +14,10 @@ This is a Flask-based API for a content-based recommender system designed for Br
 3. Make sure you have MongoDB installed and running locally, and create a database named 'breathinglines'.
 4. Clone or download the project repository.
 
+## Environment Variable
+
+-  Create your own .env file with one variable and its value. Refer to template.env for details.
+
 ## Running the API
 
 1. Navigate to the project directory.
