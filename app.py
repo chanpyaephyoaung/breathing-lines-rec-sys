@@ -68,17 +68,15 @@ def personalized_feed(user_id):
     favorited_poems_ids = user['favoritedPoems']
 
     # Check if the length of favorited_poems_ids is less than 5
-    if len(favorited_poems_ids) < 5:
+    if len(favorited_poems_ids) < 3:
         return jsonify({'message': 'You have not interacted with poems much yet! Like more poems so we can show you more poems you might like!'}), 400
 
     # Get the last ten elements of the favorited poems ids
     latest_ids = favorited_poems_ids[-10:]
-    print(latest_ids)
 
     # Fetch favorited poems from MongoDB and give recommendations
     recommended_poems = []
     for poem_id in latest_ids:
-        print(poem_id)
         poem = poems_collection.find_one({'_id': poem_id})
         if poem:
             recommendations = get_recommendations(poem['title'])
